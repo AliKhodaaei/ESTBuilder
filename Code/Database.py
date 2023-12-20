@@ -29,7 +29,6 @@ class Entity(BaseModel):
     modifier = CharField(max_length=100, null=True, default='')
     return_type = CharField(max_length=100, null=True, default='')
     exception = CharField(max_length=100, null=True, default='')
-    annotation = CharField(max_length=100, null=True, default='')
 
     def __str__(self):
-        return f"Entity(kind: {self.kind}, name: {self.name}, type: {self.type}, value: {self.value}, scope: {self.scope}, modifier: {self.modifier}, return_type: {self.return_type}, exception: {self.exception}, annotation: {self.annotation})"
+        return f"Entity(kind: {self.kind}, name: {self.name}, type: {self.type}, value: {self.value}, scope: {self.scope}, modifier: {self.modifier}, return_type: {self.return_type}, exception: {self.exception})"
