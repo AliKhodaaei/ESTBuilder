@@ -5,7 +5,7 @@ proxy = Proxy()
 
 
 def export_db(est, db_name):
-    db = SqliteDatabase('Databases/EST_' + db_name)
+    db = SqliteDatabase('Databases/EST_' + db_name)  # :memory:
     proxy.initialize(db)
     db.drop_tables([Entity])
     db.create_tables([Entity])

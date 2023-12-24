@@ -9,6 +9,8 @@ from Gen20.Java20Parser import Java20Parser
 
 print('Extended Symbol Table Builder v1\n')
 input_folder = input('Enter project relative path (e.g. Projects/SampleTest): ')
+if not input_folder:
+    input_folder = 'Projects/Hello'  # Start with a default folder
 print(f'Scanning {input_folder} directory and its subdirectories for java source code files...')
 
 # Create an empty list to store the relative paths of .java files
@@ -45,7 +47,7 @@ for f in java_files:
     tree = parser.compilationUnit()
 
     # Creating a listener object
-    listener = EstListener(f[1])
+    listener = EstListener(f[1], input_folder.split('\\')[0])
 
     # Walking the parse tree
     walker = ParseTreeWalker()

@@ -12412,6 +12412,7 @@ class Java20Parser ( Parser ):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
+            self.scope_id = None
             self.parser = parser
 
         def LBRACE(self):

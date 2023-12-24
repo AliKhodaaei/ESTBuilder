@@ -8,9 +8,11 @@ from Gen20.Java20ParserListener import Java20ParserListener
 
 # Defining the listener class
 class EstListener(Java20ParserListener):
-    def __init__(self, filename):
+    def __init__(self, filename, projectname):
         self.est = []
         self.filename = filename
+        self.packagename = None
+        self.projectname = projectname.split('/')[-1]
         entity = Entity()
         entity.kind = 'file'
         entity.name = filename
@@ -19,14 +21,27 @@ class EstListener(Java20ParserListener):
     # Method for resolve scope names and replace with their uid
     def finalize_est(self):
         for entity in self.est:
-            if entity.scope:
-                parent_entity = next(e for e in self.est if e.kind in ['file', 'class', 'interface', 'method'] and e.name == entity.scope)
-                if parent_entity:
+            if entity.scope and not Utilities.is_valid_uuid(entity.scope):
+                default_entity = Entity()
+                default_entity.uid = 0
+                parent_entity = next((e for e in self.est if e.kind in ['file', 'class', 'interface', 'method', 'package'] and e.name == entity.scope), default_entity)
+                if parent_entity.uid != 0:
                     entity.scope = parent_entity.uid
 
     def print_entities(self):
         for entity in self.est:
             print(entity)
+
+    def enterBlock(self, ctx: Java20Parser.BlockContext):
+        entity = Entity()
+        entity.kind = 'block'
+        ctx.scope_id = entity.uid
+        self.est.append(entity)
+
+    def exitBlock(self, ctx: Java20Parser.BlockContext):
+        parent_ctx = ctx.parentCtx
+        entity = next((e for e in self.est if e.kind == 'block' and e.uid == ctx.scope_id))
+        Utilities.findParentScope(parent_ctx, entity)
 
     def exitPackageDeclaration(self, ctx: Java20Parser.PackageDeclarationContext):
         try:
@@ -37,11 +52,11 @@ class EstListener(Java20ParserListener):
                 if ctx.getChild(i).getText() == ';':
                     break
                 entity.name += ctx.getChild(i).getText()
-            entity.name = entity.name[:-1]
 
-            entity.scope = self.filename
+            entity.scope = self.projectname
 
             self.est.append(entity)
+            self.packagename = entity.name
         except Exception as e:
             print('Error in exitPackageDeclaration:', e)
 
@@ -59,7 +74,7 @@ class EstListener(Java20ParserListener):
                 ctx = ctx.getChild(2)  # reach rest of package name if any
             entity.name = entity.name[:-1]
 
-            entity.scope = self.filename
+            entity.scope = self.packagename
 
             self.est.append(entity)
         except Exception as e:
@@ -73,10 +88,10 @@ class EstListener(Java20ParserListener):
             entity.type = ctx.typeIdentifier().getChild(0).getText()
 
             if type(ctx.parentCtx.parentCtx) is Java20Parser.TopLevelClassOrInterfaceDeclarationContext:
-                entity.scope = self.filename
+                entity.scope = self.packagename if self.packagename else self.filename
             else:
                 parent_class_ctx = ctx.parentCtx
-                Utilities.findParentClassOrInterface(parent_class_ctx, entity)
+                Utilities.findParentScope(parent_class_ctx, entity)
 
             entity.modifier = ''
             for i in range(ctx.getChildCount()):  # iterate all modifiers if more than one modifier exists
@@ -101,7 +116,7 @@ class EstListener(Java20ParserListener):
                 entity.scope = self.filename
             else:
                 parent_class_ctx = ctx.parentCtx
-                Utilities.findParentClassOrInterface(parent_class_ctx, entity)
+                Utilities.findParentScope(parent_class_ctx, entity)
 
             entity.modifier = ''
             for i in range(ctx.getChildCount()):  # iterate all modifiers if more than one modifier exists
@@ -126,7 +141,7 @@ class EstListener(Java20ParserListener):
                 entity.scope = self.filename
             else:
                 parent_class_ctx = ctx.parentCtx
-                Utilities.findParentClassOrInterface(parent_class_ctx, entity)
+                Utilities.findParentScope(parent_class_ctx, entity)
 
             entity.modifier = ''
             for i in range(ctx.getChildCount()):  # iterate all modifiers if more than one modifier exists
@@ -151,7 +166,7 @@ class EstListener(Java20ParserListener):
                 entity.scope = self.filename
             else:
                 parent_class_ctx = ctx.parentCtx
-                Utilities.findParentClassOrInterface(parent_class_ctx, entity)
+                Utilities.findParentScope(parent_class_ctx, entity)
 
             entity.modifier = ''
             for i in range(ctx.getChildCount()):  # iterate all modifiers if more than one modifier exists
@@ -194,7 +209,7 @@ class EstListener(Java20ParserListener):
             entity.value = var_ctx.getText()
 
             parent_class_ctx = ctx.parentCtx
-            Utilities.findParentClassOrInterface(parent_class_ctx, entity)
+            Utilities.findParentScope(parent_class_ctx, entity)
 
             self.est.append(entity)
         except Exception as e:
@@ -217,7 +232,7 @@ class EstListener(Java20ParserListener):
             entity.return_type = return_type.getText()
             entity.name = declarator.getChild(0).getText()
             parent_class_ctx = ctx.parentCtx
-            Utilities.findParentClassOrInterface(parent_class_ctx, entity)
+            Utilities.findParentScope(parent_class_ctx, entity)
             self.est.append(entity)
         except Exception as e:
             print('Error in exitMethodDeclaration:', e)
@@ -237,7 +252,7 @@ class EstListener(Java20ParserListener):
                 parameter_name = parameter_name.getChild(0)
             entity.name = parameter_name.getText()
             parent_method_ctx = ctx.parentCtx
-            Utilities.findParentMethod(parent_method_ctx, entity)
+            Utilities.findParentScope(parent_method_ctx, entity)
             self.est.append(entity)
         except Exception as e:
             print('Error in exitFormalParameter:', e)
@@ -269,11 +284,8 @@ class EstListener(Java20ParserListener):
             entity.value = var_ctx.getText()
 
             parent_method_ctx = ctx.parentCtx
-            try:
-                Utilities.findParentMethod(parent_method_ctx, entity)
-            except Exception:
-                if not entity.scope:
-                    Utilities.findParentClassOrInterface(parent_method_ctx, entity)
+            Utilities.findParentScope(parent_method_ctx, entity)
+
             self.est.append(entity)
         except Exception as e:
             print('Error in exitLocalVariableDeclaration:', e)
