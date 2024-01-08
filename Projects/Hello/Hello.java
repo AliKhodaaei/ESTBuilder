@@ -34,10 +34,5 @@ enum Color {
 
 // A record to represent a point in 2D space
 record Point(int x, int y) {
-    // A constructor that validates the input
-    public Point {
-        if (x < 0 || y < 0) {
-            throw new IllegalArgumentException("Coordinates must be non-negative");
-        }
-    }
+
 }

@@ -16,6 +16,7 @@ class EstListener(Java20ParserListener):
         entity = Entity()
         entity.kind = 'file'
         entity.name = filename
+        entity.scope = self.projectname
         self.est.append(entity)
 
     # Method for resolve scope names and replace with their uid
@@ -57,6 +58,10 @@ class EstListener(Java20ParserListener):
 
             self.est.append(entity)
             self.packagename = entity.name
+
+            # Set file scope
+            file_entity = next(e for e in self.est if e.name == self.filename)
+            file_entity.scope = self.packagename
         except Exception as e:
             print('Error in exitPackageDeclaration:', e)
 
@@ -102,6 +107,10 @@ class EstListener(Java20ParserListener):
 
             entity.modifier = entity.modifier[:-1]
             self.est.append(entity)
+
+            # inheritance reference kind
+            reference = Reference()
+
         except Exception as e:
             print('Error in exitNormalClassDeclaration:', e)
 
@@ -227,12 +236,15 @@ class EstListener(Java20ParserListener):
 
             return_type = ctx.methodHeader().getChild(0)
             declarator = ctx.methodHeader().getChild(1)
+            exception = ctx.methodHeader().getChild(2)
             while type(return_type) is not TerminalNodeImpl:
                 return_type = return_type.getChild(0)
             entity.return_type = return_type.getText()
             entity.name = declarator.getChild(0).getText()
             parent_class_ctx = ctx.parentCtx
             Utilities.findParentScope(parent_class_ctx, entity)
+            if exception:
+                entity.exception = exception.getChild(1).getText()
             self.est.append(entity)
         except Exception as e:
             print('Error in exitMethodDeclaration:', e)

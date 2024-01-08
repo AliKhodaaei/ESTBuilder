@@ -1,11 +1,9 @@
-from antlr4 import *
-
 import os
 
 from Code.Database import export_db
 from Code.EstListener import EstListener
-from Gen20.Java20Lexer import Java20Lexer
-from Gen20.Java20Parser import Java20Parser
+from Code.RefListener import RefListener
+from Code.FileScanner import scan_file
 
 print('Extended Symbol Table Builder v1\n')
 input_folder = input('Enter project relative path (e.g. Projects/SampleTest): ')
@@ -28,40 +26,27 @@ for root, dirs, files in os.walk(input_folder):
             java_files.append((path, file))
 
 project_est = []
+
+# First iteration: Scan all files for declarations
 for f in java_files:
-    print(f'\nGenerating EST for {f[1]}...')
-
-    # Reading the Java source code
-    input_stream = FileStream(f[0])
-
-    # Creating a lexer object
-    lexer = Java20Lexer(input_stream)
-
-    # Creating a token stream
-    stream = CommonTokenStream(lexer)
-
-    # Creating a parser object
-    parser = Java20Parser(stream)
-
-    # Creating a parse tree
-    tree = parser.compilationUnit()
+    print(f'Generating EST for {f[1]}...')
 
     # Creating a listener object
-    listener = EstListener(f[1], input_folder.split('\\')[0])
-
-    # Walking the parse tree
-    walker = ParseTreeWalker()
-    walker.walk(listener, tree)
-
-    # Printing the symbol table
-    listener.print_entities()
-
-    # Finalize database (Convert scope name to scope id)
-    # If you want to scope names instead of scope id, comment this line
-    listener.finalize_est()
+    entity_listener = EstListener(f[1], input_folder.split('\\')[0])
 
     # Add current file est to project est
-    project_est.extend(listener.est)
+    project_est.extend(scan_file(f, entity_listener))
+
+# Second iteration: Scan all files and database for references
+for f in java_files:
+    print(f'Completing EST for {f[1]}...')
+
+    # Walk tree for references
+    reference_listener = RefListener(project_est)
+
+    # Complete current file est
+    project_est.extend(scan_file(f, reference_listener))
+
 
 # Export EST database
 print(f'\nTotal {len(project_est)} Entities extracted from project')
