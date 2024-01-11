@@ -1,2 +1,4 @@
 class Sup
 {}
+
+class supa{}

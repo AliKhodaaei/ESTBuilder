@@ -7,42 +7,47 @@ from Gen20.Java20ParserListener import Java20ParserListener
 
 
 # Defining the listener class
-class EstListener(Java20ParserListener):
+class EntListener(Java20ParserListener):
     def __init__(self, filename, projectname):
-        self.est = []
+        self.entity_est = []
+
         self.filename = filename
         self.packagename = None
         self.projectname = projectname.split('/')[-1]
+
         entity = Entity()
         entity.kind = 'file'
         entity.name = filename
         entity.scope = self.projectname
-        self.est.append(entity)
+        self.entity_est.append(entity)
+
+    def get_est(self):
+        return self.entity_est
 
     # Method for resolve scope names and replace with their uid
     def finalize_est(self):
-        for entity in self.est:
+        for entity in self.entity_est:
             if entity.scope and not Utilities.is_valid_uuid(entity.scope):
                 default_entity = Entity()
                 default_entity.uid = 0
-                parent_entity = next((e for e in self.est if e.kind in ['file', 'class', 'interface', 'method', 'package'] and e.name == entity.scope), default_entity)
+                parent_entity = next((e for e in self.entity_est if e.kind in ['file', 'class', 'interface', 'method', 'package'] and e.name == entity.scope), default_entity)
                 if parent_entity.uid != 0:
                     entity.scope = parent_entity.uid
 
     def print_entities(self):
-        for entity in self.est:
+        for entity in self.entity_est:
             print(entity)
 
     def enterBlock(self, ctx: Java20Parser.BlockContext):
         entity = Entity()
         entity.kind = 'block'
         ctx.scope_id = entity.uid
-        self.est.append(entity)
+        self.entity_est.append(entity)
 
     def exitBlock(self, ctx: Java20Parser.BlockContext):
         parent_ctx = ctx.parentCtx
-        entity = next((e for e in self.est if e.kind == 'block' and e.uid == ctx.scope_id))
-        Utilities.findParentScope(parent_ctx, entity)
+        entity = next((e for e in self.entity_est if e.kind == 'block' and e.uid == ctx.scope_id))
+        Utilities.setParentScope(parent_ctx, entity)
 
     def exitPackageDeclaration(self, ctx: Java20Parser.PackageDeclarationContext):
         try:
@@ -56,11 +61,11 @@ class EstListener(Java20ParserListener):
 
             entity.scope = self.projectname
 
-            self.est.append(entity)
+            self.entity_est.append(entity)
             self.packagename = entity.name
 
             # Set file scope
-            file_entity = next(e for e in self.est if e.name == self.filename)
+            file_entity = next(e for e in self.entity_est if e.name == self.filename)
             file_entity.scope = self.packagename
         except Exception as e:
             print('Error in exitPackageDeclaration:', e)
@@ -81,7 +86,7 @@ class EstListener(Java20ParserListener):
 
             entity.scope = self.packagename
 
-            self.est.append(entity)
+            self.entity_est.append(entity)
         except Exception as e:
             print('Error in exitImportDeclaration:', e)
 
@@ -96,7 +101,7 @@ class EstListener(Java20ParserListener):
                 entity.scope = self.packagename if self.packagename else self.filename
             else:
                 parent_class_ctx = ctx.parentCtx
-                Utilities.findParentScope(parent_class_ctx, entity)
+                Utilities.setParentScope(parent_class_ctx, entity)
 
             entity.modifier = ''
             for i in range(ctx.getChildCount()):  # iterate all modifiers if more than one modifier exists
@@ -106,7 +111,7 @@ class EstListener(Java20ParserListener):
                 entity.modifier += ctx.getChild(i).getChild(0).getText() + ' '
 
             entity.modifier = entity.modifier[:-1]
-            self.est.append(entity)
+            self.entity_est.append(entity)
 
             # inheritance reference kind
             reference = Reference()
@@ -125,7 +130,7 @@ class EstListener(Java20ParserListener):
                 entity.scope = self.filename
             else:
                 parent_class_ctx = ctx.parentCtx
-                Utilities.findParentScope(parent_class_ctx, entity)
+                Utilities.setParentScope(parent_class_ctx, entity)
 
             entity.modifier = ''
             for i in range(ctx.getChildCount()):  # iterate all modifiers if more than one modifier exists
@@ -135,7 +140,7 @@ class EstListener(Java20ParserListener):
                 entity.modifier += ctx.getChild(i).getChild(0).getText() + ' '
 
             entity.modifier = entity.modifier[:-1]
-            self.est.append(entity)
+            self.entity_est.append(entity)
         except Exception as e:
             print('Error in exitNormalInterfaceDeclaration:', e)
 
@@ -150,7 +155,7 @@ class EstListener(Java20ParserListener):
                 entity.scope = self.filename
             else:
                 parent_class_ctx = ctx.parentCtx
-                Utilities.findParentScope(parent_class_ctx, entity)
+                Utilities.setParentScope(parent_class_ctx, entity)
 
             entity.modifier = ''
             for i in range(ctx.getChildCount()):  # iterate all modifiers if more than one modifier exists
@@ -160,7 +165,7 @@ class EstListener(Java20ParserListener):
                 entity.modifier += ctx.getChild(i).getChild(0).getText() + ' '
 
             entity.modifier = entity.modifier[:-1]
-            self.est.append(entity)
+            self.entity_est.append(entity)
         except Exception as e:
             print('Error in exitEnumDeclaration:', e)
 
@@ -175,7 +180,7 @@ class EstListener(Java20ParserListener):
                 entity.scope = self.filename
             else:
                 parent_class_ctx = ctx.parentCtx
-                Utilities.findParentScope(parent_class_ctx, entity)
+                Utilities.setParentScope(parent_class_ctx, entity)
 
             entity.modifier = ''
             for i in range(ctx.getChildCount()):  # iterate all modifiers if more than one modifier exists
@@ -185,7 +190,7 @@ class EstListener(Java20ParserListener):
                 entity.modifier += ctx.getChild(i).getChild(0).getText() + ' '
 
             entity.modifier = entity.modifier[:-1]
-            self.est.append(entity)
+            self.entity_est.append(entity)
         except Exception as e:
             print('Error in exitRecordDeclaration:', e)
 
@@ -218,9 +223,9 @@ class EstListener(Java20ParserListener):
             entity.value = var_ctx.getText()
 
             parent_class_ctx = ctx.parentCtx
-            Utilities.findParentScope(parent_class_ctx, entity)
+            Utilities.setParentScope(parent_class_ctx, entity)
 
-            self.est.append(entity)
+            self.entity_est.append(entity)
         except Exception as e:
             print('Error in exitFieldDeclaration:', e)
 
@@ -242,10 +247,10 @@ class EstListener(Java20ParserListener):
             entity.return_type = return_type.getText()
             entity.name = declarator.getChild(0).getText()
             parent_class_ctx = ctx.parentCtx
-            Utilities.findParentScope(parent_class_ctx, entity)
+            Utilities.setParentScope(parent_class_ctx, entity)
             if exception:
                 entity.exception = exception.getChild(1).getText()
-            self.est.append(entity)
+            self.entity_est.append(entity)
         except Exception as e:
             print('Error in exitMethodDeclaration:', e)
 
@@ -264,8 +269,8 @@ class EstListener(Java20ParserListener):
                 parameter_name = parameter_name.getChild(0)
             entity.name = parameter_name.getText()
             parent_method_ctx = ctx.parentCtx
-            Utilities.findParentScope(parent_method_ctx, entity)
-            self.est.append(entity)
+            Utilities.setParentScope(parent_method_ctx, entity)
+            self.entity_est.append(entity)
         except Exception as e:
             print('Error in exitFormalParameter:', e)
 
@@ -296,8 +301,8 @@ class EstListener(Java20ParserListener):
             entity.value = var_ctx.getText()
 
             parent_method_ctx = ctx.parentCtx
-            Utilities.findParentScope(parent_method_ctx, entity)
+            Utilities.setParentScope(parent_method_ctx, entity)
 
-            self.est.append(entity)
+            self.entity_est.append(entity)
         except Exception as e:
             print('Error in exitLocalVariableDeclaration:', e)
